@@ -3,7 +3,7 @@ const log = console.log;
 const chalk = require('chalk');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken')
 
 const { Pool } = require('pg');
 
@@ -65,6 +65,59 @@ app.post('/signup', async(req, res) => {
             message: "USER ALREADY EXIST",
         })
     }
+})
+
+app.post('/signin', async(req, res) => {
+
+    const username = req.body.username;
+    const email = req.body.email;
+    const password = req.body.password;
+
+    if(!username || !email || !password){
+        return res.status(400).json({
+            staus: "FAIL",
+            message: "BAD REQUEST",
+        })
+    }
+
+    const query = 'SELECT * FROM users WHERE username = $1';
+    const response = await pool.query(query, [username]);
+
+    // log(chalk.red('response: '))
+    // log(response);
+
+    const userExist = response.rows[0];
+
+    if(!userExist){
+        return res.status(404).json({
+            status: "FAIL",
+            message: "INCORRECT CREDENTIALS. USER NOT FOUND"
+        })
+    }
+
+    const checkPassword = await bcrypt.compare(password, userExist.hashed_password);
+    // log(chalk.red('Password Verification: '));
+    // log(checkPassword);
+
+    if(!checkPassword){
+        return res.status(401).json({
+            status: "FAIL",
+            message: "INCORRECT CREDENTIALS."
+        })
+    }
+
+    const userId = userExist.id;
+
+    const token = jwt.sign({
+        userId
+    }, process.env.JWT_KEY)
+
+    res.json({
+        status: "SUCCESS",
+        message: "LOGGED IN SUCCESSFULLY",
+        token
+    })
+
 })
 
 app.listen(PORT, () => {
