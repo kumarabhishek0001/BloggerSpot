@@ -140,7 +140,7 @@ app.post('/getalluser', authMiddleware, async (req, res) => {
 })
 
 // CREATE ENDPOINT
-app.post('/blog/createBlog', authMiddleware, async (req, res) => {
+app.post('/api/createBlog', authMiddleware, async (req, res) => {
 
     function createSlug(title) {
         const slug = title.toString()
@@ -202,6 +202,30 @@ app.post('/blog/createBlog', authMiddleware, async (req, res) => {
     }
 
 })
+
+// GET ENDPOINT
+app.get('/api/getAllBlogs', authMiddleware, async(req, res) => {
+    try{
+        const userId = req.userId;
+
+        const query = 'SELECT id, title, slug, content FROM blogs';
+        const response = await pool.query(query);
+        data = response.rows;
+
+        res.json({
+            status: "SUCCESS",
+            message: "ALL BLOGS FETCHED",
+            data 
+        })
+    }
+    catch(error){
+        res.status(500).json({
+            staus:"ERROR",
+            message: error.message
+        })
+    }
+})
+
 
 
 app.listen(PORT, () => {
