@@ -1,5 +1,5 @@
 const log = console.log;
-const {authMiddleware} = require('./authMiddleware');
+const { authMiddleware } = require('./authMiddleware');
 
 const chalk = require('chalk');
 require('dotenv').config();
@@ -25,12 +25,13 @@ app.get('/', (req, res) => {
     res.send('Live!!');
 })
 
-app.post('/signup', async(req, res) => {
+// AUTHENTICATION 
+app.post('/signup', async (req, res) => {
     const username = req.body.username;
     const email = req.body.email;
     const password = req.body.password;
 
-    if(!username || !email || !password){
+    if (!username || !email || !password) {
         return res.status(400).json({
             staus: "FAIL",
             message: "BAD REQUEST",
@@ -38,7 +39,7 @@ app.post('/signup', async(req, res) => {
     }
 
     const hashed_password = await bcrypt.hash(password, 10);
-    
+
 
     const query = 'INSERT INTO users(username, email, password, hashed_password) VALUES ($1, $2, $3, $4) RETURNING id, username';
     // log(chalk.blue('query: ', query));
@@ -46,7 +47,7 @@ app.post('/signup', async(req, res) => {
     const value = [username, email, password, hashed_password];
     // log(chalk.blue(value));
 
-    try{
+    try {
         const response = await pool.query(query, value);
         log(chalk.red('response: '));
         log(response.rows);
@@ -57,7 +58,7 @@ app.post('/signup', async(req, res) => {
             response: response.rows
         })
 
-    }catch(err){
+    } catch (err) {
         log(chalk.red('ERROR: '));
         log(err);
 
@@ -68,13 +69,13 @@ app.post('/signup', async(req, res) => {
     }
 })
 
-app.post('/signin', async(req, res) => {
+app.post('/signin', async (req, res) => {
 
     const username = req.body.username;
     const email = req.body.email;
     const password = req.body.password;
 
-    if(!username || !email || !password){
+    if (!username || !email || !password) {
         return res.status(400).json({
             staus: "FAIL",
             message: "BAD REQUEST",
@@ -89,7 +90,7 @@ app.post('/signin', async(req, res) => {
 
     const userExist = response.rows[0];
 
-    if(!userExist){
+    if (!userExist) {
         return res.status(404).json({
             status: "FAIL",
             message: "INCORRECT CREDENTIALS. USER NOT FOUND"
@@ -100,7 +101,7 @@ app.post('/signin', async(req, res) => {
     // log(chalk.red('Password Verification: '));
     // log(checkPassword);
 
-    if(!checkPassword){
+    if (!checkPassword) {
         return res.status(401).json({
             status: "FAIL",
             message: "INCORRECT CREDENTIALS."
@@ -121,9 +122,10 @@ app.post('/signin', async(req, res) => {
 
 })
 
-app.post('/getalluser', authMiddleware, async(req, res) => {
+// ADMIN CONTROLLS
+app.post('/getalluser', authMiddleware, async (req, res) => {
     const userId = req.userId;
-    if(userId === 1){
+    if (userId === 1) {
         const query = 'SELECT username, email, created_at FROM users';
         const response = await pool.query(query);
 
@@ -136,6 +138,71 @@ app.post('/getalluser', authMiddleware, async(req, res) => {
         })
     }
 })
+
+// CREATE ENDPOINT
+app.post('/blog/createBlog', authMiddleware, async (req, res) => {
+
+    function createSlug(title) {
+        const slug = title.toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w-]+/g, '')
+            .replace(/--+/g, '-');
+        return slug;
+    }
+
+    try {
+        const userId = req.userId;
+        const authorId = userId;
+        const { title, content } = req.body;
+
+        const query = 'INSERT INTO blogs(title, slug, content, author_id) VALUES($1, $2, $3, $4) RETURNING *';
+        log(chalk.red(query));
+        log(query);
+
+        let slug = createSlug(title)
+
+        const values = [title, slug, content, authorId];
+        log(chalk.red(values));
+        log(values);
+
+        try {
+            const response = await pool.query(query, values);
+            const data = response.rows;
+
+            res.json({
+                status: "SUCCESS",
+                message: "BLOG CREATED SUCCESSFULLY",
+                data
+            })
+        }catch(err){
+            if(err.code === "23505"){
+                slug = slug + '-' + Date.now()
+
+                const retry = await pool.query(query, [title, slug, content, authorId]);
+
+                return res.json({
+                    status: "SUCCESS",
+                    message: "BLOG CREATED (with modified slug)",
+                    data: retry.rows[0]
+                });
+            }
+
+            throw err
+        }
+
+    }catch(error){
+        res.status(500).json({
+            status: "ERROR",
+            message: error.message
+        })
+    }
+
+})
+
 
 app.listen(PORT, () => {
     log(chalk.green(`server live on http://localhost:${PORT}`));
