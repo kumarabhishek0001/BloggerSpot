@@ -249,7 +249,66 @@ app.get('/api/getBlog/:slug', authMiddleware, async(req, res) => {
     }
 })
 
+// DELETE ENDPOINT
+app.delete('/api/deletBlog/:slug', authMiddleware, async(req, res) => {
+    try{
 
+        const userId = req.userId;
+        log(chalk.red('userId', userId));
+
+        const blogSlug = req.params.slug;
+        log(chalk.red('blogSlug', blogSlug))
+        
+        // find if the blog exist
+        const blog = await pool.query('SELECT * FROM blogs WHERE slug=$1', [blogSlug]);
+        const checkBlog = blog.rows[0];
+        log(chalk.red('blog data: '));
+        log(blog.rows);
+
+        if(!checkBlog){
+            return res.status(404).json({
+                status: "ERROR",
+                message: "BLOG DOES NOT EXIST"
+            })
+        }
+        
+        // Different authors can have same slug
+        // blog variable has all the blogs where slug is say hello
+        // I enter all the authorId who have blog with slug hello in array
+        // now I check if request made by user is an author or not
+        const authorId = [];
+        
+        for(let item of blog.rows){
+            authorId.push(item.author_id);
+        }
+
+        log(chalk.red('authorId: ', authorId));
+
+        const requestByAuthor = authorId.includes(userId)
+
+        if(!requestByAuthor){
+            return res.status(401).json({
+                status: "ERROR",
+                message: "anauthorized request"
+            })
+        }
+
+        const query = 'DELETE FROM blogs WHERE slug=$1 AND author_id=$2 RETURNING *'
+        const response  = await pool.query(query, [blogSlug, userId])
+        const deletedItem = response.rows[0];
+
+        res.json({
+            status: "SUCCESS",
+            message: "USER DELETED SUCCESSFULLY",
+            details: deletedItem
+        })
+    }catch(error){
+        res.status(500).json({
+            status: "ERROR",
+            message : error.message
+        })
+    }
+})
 
 app.listen(PORT, () => {
     log(chalk.green(`server live on http://localhost:${PORT}`));
