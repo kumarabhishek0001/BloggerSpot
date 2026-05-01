@@ -1,4 +1,5 @@
 const log = console.log;
+const {authMiddleware} = require('./authMiddleware');
 
 const chalk = require('chalk');
 require('dotenv').config();
@@ -118,6 +119,22 @@ app.post('/signin', async(req, res) => {
         token
     })
 
+})
+
+app.post('/getalluser', authMiddleware, async(req, res) => {
+    const userId = req.userId;
+    if(userId === 1){
+        const query = 'SELECT username, email, created_at FROM users';
+        const response = await pool.query(query);
+
+        const data = response.rows;
+
+        res.json({
+            status: "SUCCESS",
+            message: "DATA FETCHED",
+            data
+        })
+    }
 })
 
 app.listen(PORT, () => {
