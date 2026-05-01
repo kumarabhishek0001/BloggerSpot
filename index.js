@@ -226,6 +226,29 @@ app.get('/api/getAllBlogs', authMiddleware, async(req, res) => {
     }
 })
 
+app.get('/api/getBlog/:slug', authMiddleware, async(req, res) => {
+    try{
+        const userId = req.userId;
+        const getSlug = req.params.slug;
+
+        const query = 'SELECT id, title, slug, content FROM blogs WHERE slug = $1';
+        const response = await pool.query(query, [getSlug]);
+        data = response.rows;
+
+        res.json({
+            status: "SUCCESS",
+            message: "BLOG FETCHED",
+            data 
+        })
+    }
+    catch(error){
+        res.status(500).json({
+            staus:"ERROR",
+            message: error.message
+        })
+    }
+})
+
 
 
 app.listen(PORT, () => {
